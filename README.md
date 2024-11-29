@@ -35,7 +35,7 @@ The server will start, and the webhook will be ready to receive push events from
 2. Under "Webhooks", add a new webhook:
    - Payload URL: http://your-server-ip/webhook
    - Content type: application/json
-   - Secret: Set it to the value of GITHUB_SECRET.
+   - Secret: Set it to the value of GITHUB_WEBHOOK_SECRET.
    - Select "Push" events.
 
 ## Shell script examples:
