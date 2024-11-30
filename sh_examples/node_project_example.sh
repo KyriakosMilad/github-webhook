@@ -11,7 +11,6 @@ cd "$PROJECT_DIR" || { echo "Directory not found: $PROJECT_DIR"; exit 1; }
 echo "Pulling latest changes"
 git pull
 
-
 # install dependencies
 echo "Installing dependencies..."
 yarn install
