@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# set Go binary path
+# this is the default linux path. change this to your Go binary path if it's different
+export PATH=$PATH:/usr/local/go/bin
+
+# start the SSH agent and add the key (needed to run git commands like git pull)
+# change id_ed25519 to your private key file name if different
+eval $(ssh-agent -s)
+eval $(keychain --eval --agents ssh id_ed25519)
+
 # define project directory path
 PROJECT_DIR="/path/to/your/project"
 
