@@ -25,6 +25,6 @@ mv backendApp /path/to/production
 
 # restart server
 echo "Restarting server..."
-sudo systemctl restart nginx
+sudo systemctl restart backend
 
 echo "Deployment complete!"
