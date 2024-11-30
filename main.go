@@ -113,6 +113,9 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// log the output of the shell script
+	log.Printf("Shell script output: %s", outBuf.String())
+
 	// return 200 OK status
 	w.WriteHeader(http.StatusOK)
 }
