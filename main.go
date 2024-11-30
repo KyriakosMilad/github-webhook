@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -88,25 +89,28 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	shellPath := os.Getenv("SHELL_PATH")
 
 	// read the body of the request (webhook payload)
-	payload := make([]byte, r.ContentLength)
-	err := json.NewDecoder(r.Body).Decode(&payload)
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	// parse the request body
+	pushEvent := &PushEvent{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&pushEvent)
 	if err != nil {
 		http.Error(w, "Invalid payload", http.StatusBadRequest)
 		return
 	}
+	fmt.Println(fmt.Sprintf("Received payload: %#v", pushEvent))
+	defer r.Body.Close()
 
 	// verify the request signature
 	isValid := verifySignature(payload, githubWebhookSecret, r.Header.Get("X-Hub-Signature-256"))
 	if !isValid {
 		http.Error(w, "Invalid signature", http.StatusUnauthorized)
-		return
-	}
-
-	// parse the GitHub push event
-	var pushEvent PushEvent
-	err = json.Unmarshal(payload, &pushEvent)
-	if err != nil {
-		http.Error(w, "Error parsing webhook payload", http.StatusBadRequest)
 		return
 	}
 
