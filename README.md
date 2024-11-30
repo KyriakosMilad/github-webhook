@@ -65,12 +65,15 @@ Ensure the GitHub Webhook handler starts automatically when the server boots.
    WorkingDirectory=/path/to/this/repository/on/your/server
    EnvironmentFile=/path/to/this/repository/on/your/server/.env
    Restart=always
-   User=your-user # make sure user has the permissions to read/write to your app-repo path
-   Group=your-user # make sure user has the permissions to read/write to your app-repo path
+   User=your-user
+   Group=your-user
 
    [Install]
    WantedBy=multi-user.target
     ```
+   Replace ``your-user`` with the user that will run the service (make sure user has the permissions to read/write to your app-repo path), and the paths with the actual paths on your server.
+
+
 2. Copy the service file to the systemd directory:
    ```bash
    sudo cp github-webhook.service /etc/systemd/system/
