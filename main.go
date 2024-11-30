@@ -94,23 +94,26 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// parse the request body
-	pushEvent := &PushEvent{}
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&pushEvent)
-	if err != nil {
-		http.Error(w, "Invalid payload", http.StatusBadRequest)
+	// verify the request signature
+	signature := strings.Split(r.Header.Get("X-Hub-Signature-256"), "=")
+	if len(signature) != 2 {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
 		return
 	}
-	fmt.Println(fmt.Sprintf("Received payload: %#v", pushEvent))
-	defer r.Body.Close()
-
-	// verify the request signature
-	isValid := verifySignature(payload, githubWebhookSecret, r.Header.Get("X-Hub-Signature-256"))
+	isValid := verifySignature(payload, githubWebhookSecret, signature[1])
 	if !isValid {
 		http.Error(w, "Invalid signature", http.StatusUnauthorized)
 		return
 	}
+
+	// parse the request body
+	pushEvent := &PushEvent{}
+	err = json.Unmarshal(payload, pushEvent)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid payload: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
 
 	// check if push event is for the correct repository
 	if pushEvent.Repo.FullName != repoFullName {
@@ -136,10 +139,12 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	// execute the shell script
-	cmd := exec.Command(shellPath)
+	cmd := exec.Command("bash", shellPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		http.Error(w, "Error executing shell script", http.StatusInternalServerError)
+		http.Error(w, "Error executing shell script: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -151,8 +156,8 @@ func verifySignature(payload []byte, githubWebhookSecret, signature string) bool
 	// compute HMAC-SHA256 hash of the payload using the secret key
 	mac := hmac.New(sha256.New, []byte(githubWebhookSecret))
 	mac.Write(payload)
-	expectedSignature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	computedSignature := hex.EncodeToString(mac.Sum(nil))
 
 	// compare the computed hash with the signature sent by GitHub
-	return hmac.Equal([]byte(expectedSignature), []byte(signature))
+	return hmac.Equal([]byte(computedSignature), []byte(signature))
 }
