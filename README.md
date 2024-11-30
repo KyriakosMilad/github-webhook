@@ -51,6 +51,10 @@ The server will start, and the webhook will be ready to receive push events from
 Ensure the GitHub Webhook handler starts automatically when the server boots.
 
 1. **Create a systemd service file** (e.g., `github-webhook.service`):
+   ```shell
+   touch github-webhook.service
+   ```
+
    ```ini
    [Unit]
    Description=GitHub Webhook Handler
