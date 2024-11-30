@@ -16,11 +16,9 @@ import (
 )
 
 type PushEvent struct {
-	Ref  string `json:"ref"`
 	Repo struct {
-		Name     string `json:"name"`
 		FullName string `json:"full_name"`
-	}
+	} `json:"repository"`
 }
 
 func main() {
@@ -84,7 +82,7 @@ func loadEnvVars() error {
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// get needed environment variables
 	githubWebhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
-	branchName := os.Getenv("BRANCH_NAME")
+	//branchName := os.Getenv("BRANCH_NAME")
 	repoFullName := os.Getenv("REPO_FULL_NAME")
 	shellPath := os.Getenv("SHELL_PATH")
 
@@ -125,16 +123,17 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// for some reason, the branch name is not included in the payload, comment this check for now
 	// check if the push is to the correct branch
-	if strings.HasSuffix(pushEvent.Ref, branchName) == false {
-		// ignore pushes to other branches
-		log.Printf("Ignored push to branch: %s", pushEvent.Ref)
-		fmt.Fprintf(w, "Ignored push to branch: %s", pushEvent.Ref)
-
-		// return 200 OK status
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+	//if strings.HasSuffix(pushEvent.Ref, branchName) == false {
+	//	// ignore pushes to other branches
+	//	log.Printf("Ignored push to branch: %s", pushEvent.Ref)
+	//	fmt.Fprintf(w, "Ignored push to branch: %s", pushEvent.Ref)
+	//
+	//	// return 200 OK status
+	//	w.WriteHeader(http.StatusOK)
+	//	return
+	//}
 
 	// execute the shell script
 	cmd := exec.Command(shellPath)
