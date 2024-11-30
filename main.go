@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -24,7 +25,7 @@ type PushEvent struct {
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error loading .env file: " + err.Error())
 	}
 
 	port := os.Getenv("PORT")
@@ -99,13 +100,16 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	//	return
 	//}
 
+	// Create buffers to capture both stdout and stderr
+	var outBuf, errBuf bytes.Buffer
+
 	// execute the shell script
 	cmd := exec.Command("bash", shellPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
 	err = cmd.Run()
 	if err != nil {
-		http.Error(w, "Error executing shell script: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error executing shell script: %s, stdout: %s, stderr: %s", err.Error(), outBuf.String(), errBuf.String()), http.StatusInternalServerError)
 		return
 	}
 
