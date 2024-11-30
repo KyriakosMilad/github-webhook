@@ -1,6 +1,6 @@
 # GitHub Webhook Handler
 
-This Go-based zero-dep application listens for GitHub push events and processes them based on a specified branch. It
+This Go-based application listens for GitHub push events and processes them based on a specified branch. It
 allows you to handle webhooks specifically for pushes to a certain branch, can be used for triggering automated deployments
 or other actions.
 

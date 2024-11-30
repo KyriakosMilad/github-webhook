@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/joho/godotenv"
 	"io"
 	"log"
 	"net/http"
@@ -22,10 +22,9 @@ type PushEvent struct {
 }
 
 func main() {
-	err := loadEnvVars()
+	err := godotenv.Load()
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Fatal("Error loading .env file")
 	}
 
 	port := os.Getenv("PORT")
@@ -39,44 +38,6 @@ func main() {
 	// start the server on a specific port
 	fmt.Println("Listening on port " + port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-func loadEnvVars() error {
-	// open the .env file
-	file, err := os.Open(".env")
-	if err != nil {
-		return fmt.Errorf("could not open .env file: %v", err)
-	}
-	defer file.Close()
-
-	// read the file line by line
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		// ignore empty lines or comments
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// split key and value
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue // skip invalid lines
-		}
-
-		// set the environment variable
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-		err := os.Setenv(key, value)
-		if err != nil {
-			return fmt.Errorf("could not set environment variable %s: %v", key, err)
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("could not read .env file: %v", err)
-	}
-	return nil
 }
 
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
