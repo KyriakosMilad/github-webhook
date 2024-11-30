@@ -7,6 +7,10 @@ PROJECT_DIR="/path/to/your/project"
 echo "Changing to project directory..."
 cd "$PROJECT_DIR" || { echo "Directory not found: $PROJECT_DIR"; exit 1; }
 
+# pull latest changes
+echo "Pulling latest changes"
+git pull
+
 # install dependencies
 echo "Installing dependencies..."
 go mod tidy
