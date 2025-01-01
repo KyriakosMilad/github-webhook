@@ -30,7 +30,8 @@ yarn build || { echo "yarn build failed"; exit 1; }
 
 # move production files to the production path
 echo "Moving production files to the production path..."
-mv dist/* /path/to/production
+rm -rdf /path/to/production/*
+mv dist/* /path/to/production/
 
 # restart server
 echo "Restarting server..."
