@@ -58,6 +58,8 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	// verify the request signature
 	signature := strings.Split(r.Header.Get("X-Hub-Signature-256"), "=")
+	fmt.Println("Signature: ", r.Header.Get("X-Hub-Signature-256"))
+	fmt.Println("Signature length: ", len(signature))
 	if len(signature) != 2 {
 		http.Error(w, "Invalid signature", http.StatusUnauthorized)
 		return
