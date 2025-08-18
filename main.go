@@ -7,25 +7,41 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/joho/godotenv"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type PushEvent struct {
+	Ref  string `json:"ref"`
 	Repo struct {
 		FullName string `json:"full_name"`
 	} `json:"repository"`
 }
 
+type RepoConfig struct {
+	FullName  string
+	Branch    string
+	Secret    string
+	ShellPath string
+}
+
+var repoConfigs []RepoConfig
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file: " + err.Error())
+	}
+
+	repoConfigs = loadConfigsFromEnv()
+	if len(repoConfigs) == 0 {
+		log.Fatal("No repository configurations found. Define REPO_FULL_NAME_1, GITHUB_WEBHOOK_SECRET_1, SHELL_PATH_1, etc.")
 	}
 
 	port := os.Getenv("PORT")
@@ -41,13 +57,33 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func webhookHandler(w http.ResponseWriter, r *http.Request) {
-	// get needed environment variables
-	githubWebhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
-	//branchName := os.Getenv("BRANCH_NAME")
-	repoFullName := os.Getenv("REPO_FULL_NAME")
-	shellPath := os.Getenv("SHELL_PATH")
+func loadConfigsFromEnv() []RepoConfig {
+	var configs []RepoConfig
+	for i := 1; ; i++ {
+		fullName := os.Getenv(fmt.Sprintf("REPO_FULL_NAME_%d", i))
+		if fullName == "" {
+			break
+		}
+		secret := os.Getenv(fmt.Sprintf("GITHUB_WEBHOOK_SECRET_%d", i))
+		shellPath := os.Getenv(fmt.Sprintf("SHELL_PATH_%d", i))
+		branch := os.Getenv(fmt.Sprintf("BRANCH_NAME_%d", i))
 
+		if secret == "" || shellPath == "" {
+			log.Printf("Skipping repo config %d due to missing secret or shell path", i)
+			continue
+		}
+
+		configs = append(configs, RepoConfig{
+			FullName:  fullName,
+			Branch:    branch,
+			Secret:    secret,
+			ShellPath: shellPath,
+		})
+	}
+	return configs
+}
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// read the body of the request (webhook payload)
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -56,57 +92,57 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// verify the request signature
-	signature := strings.Split(r.Header.Get("X-Hub-Signature-256"), "=")
-	fmt.Println("Signature: ", r.Header.Get("X-Hub-Signature-256"))
-	fmt.Println("Signature length: ", len(signature))
-	if len(signature) != 2 {
-		http.Error(w, "Invalid signature", http.StatusUnauthorized)
-		return
-	}
-	isValid := verifySignature(payload, githubWebhookSecret, signature[1])
-	if !isValid {
-		http.Error(w, "Invalid signature", http.StatusUnauthorized)
-		return
-	}
-
-	// parse the request body
+	// parse the request body to determine the repository
 	pushEvent := &PushEvent{}
 	err = json.Unmarshal(payload, pushEvent)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Invalid payload: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
-	// check if push event is for the correct repository
-	if pushEvent.Repo.FullName != repoFullName {
-		// ignore pushes to other repositories
+	// find matching repo configuration
+	var cfg *RepoConfig
+	for i := range repoConfigs {
+		if repoConfigs[i].FullName == pushEvent.Repo.FullName {
+			cfg = &repoConfigs[i]
+			break
+		}
+	}
+	if cfg == nil {
 		log.Printf("Ignored push to repository: %s", pushEvent.Repo.FullName)
 		fmt.Fprintf(w, "Ignored push to repository: %s", pushEvent.Repo.FullName)
-
-		// return 200 OK status
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// for some reason, the branch name is not included in the payload, comment this check for now
-	// check if the push is to the correct branch
-	//if strings.HasSuffix(pushEvent.Ref, branchName) == false {
-	//	// ignore pushes to other branches
-	//	log.Printf("Ignored push to branch: %s", pushEvent.Ref)
-	//	fmt.Fprintf(w, "Ignored push to branch: %s", pushEvent.Ref)
-	//
-	//	// return 200 OK status
-	//	w.WriteHeader(http.StatusOK)
-	//	return
-	//}
+	// verify the request signature using the repo-specific secret
+	sigHeader := r.Header.Get("X-Hub-Signature-256")
+	signature := strings.Split(sigHeader, "=")
+	if len(signature) != 2 {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+	if !verifySignature(payload, cfg.Secret, signature[1]) {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	// optional branch check if provided
+	if cfg.Branch != "" {
+		// GitHub push ref is typically "refs/heads/<branch>"
+		if !strings.HasSuffix(pushEvent.Ref, "/"+cfg.Branch) {
+			log.Printf("Ignored push to branch: %s (expecting %s)", pushEvent.Ref, cfg.Branch)
+			fmt.Fprintf(w, "Ignored push to branch: %s", pushEvent.Ref)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
 
 	// Create buffers to capture both stdout and stderr
 	var outBuf, errBuf bytes.Buffer
 
 	// execute the shell script
-	cmd := exec.Command("bash", shellPath)
+	cmd := exec.Command("bash", cfg.ShellPath)
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	err = cmd.Run()
