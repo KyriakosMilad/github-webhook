@@ -111,7 +111,6 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	if cfg == nil {
 		log.Printf("Ignored push to repository: %s", pushEvent.Repo.FullName)
 		fmt.Fprintf(w, "Ignored push to repository: %s", pushEvent.Repo.FullName)
-		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -119,11 +118,11 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	sigHeader := r.Header.Get("X-Hub-Signature-256")
 	signature := strings.Split(sigHeader, "=")
 	if len(signature) != 2 {
-		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		http.Error(w, "Invalid signature, signature is too short", http.StatusUnauthorized)
 		return
 	}
 	if !verifySignature(payload, cfg.Secret, signature[1]) {
-		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		http.Error(w, "Invalid signature, signature mismatch", http.StatusUnauthorized)
 		return
 	}
 
@@ -133,7 +132,6 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(pushEvent.Ref, "/"+cfg.Branch) {
 			log.Printf("Ignored push to branch: %s (expecting %s)", pushEvent.Ref, cfg.Branch)
 			fmt.Fprintf(w, "Ignored push to branch: %s", pushEvent.Ref)
-			w.WriteHeader(http.StatusOK)
 			return
 		}
 	}
