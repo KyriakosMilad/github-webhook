@@ -127,7 +127,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// optional branch check if provided
-	if cfg.Branch != "" {
+	if cfg.Branch != "" && pushEvent.Ref != "" {
 		// GitHub push ref is typically "refs/heads/<branch>"
 		if !strings.HasSuffix(pushEvent.Ref, "/"+cfg.Branch) {
 			log.Printf("Ignored push to branch: %s (expecting %s)", pushEvent.Ref, cfg.Branch)
