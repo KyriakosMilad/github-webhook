@@ -121,11 +121,13 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func verifySignature(payload []byte, githubWebhookSecret, signature string) bool {
+	log.Printf("GitHub signature header: %s", signature)
+	log.Printf("Secret: %s", githubWebhookSecret)
 	// compute HMAC-SHA256 hash of the payload using the secret key
 	mac := hmac.New(sha256.New, []byte(githubWebhookSecret))
 	mac.Write(payload)
 	computedSignature := hex.EncodeToString(mac.Sum(nil))
-
+	log.Printf("Computed signature: %s", computedSignature)
 	// compare the computed hash with the signature sent by GitHub
 	return hmac.Equal([]byte(computedSignature), []byte(signature))
 }
