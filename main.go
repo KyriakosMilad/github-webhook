@@ -73,6 +73,8 @@ func loadConfigsFromEnv() []RepoConfig {
 			continue
 		}
 
+		log.Printf("Loaded config for repo %d: %s (secret length: %d)", i, fullName, len(secret))
+
 		configs = append(configs, RepoConfig{
 			FullName:  fullName,
 			Branch:    branch,
@@ -116,11 +118,13 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	// verify the request signature using the repo-specific secret
 	sigHeader := r.Header.Get("X-Hub-Signature-256")
+	log.Printf("Received signature header: %s", sigHeader)
 	signature := strings.Split(sigHeader, "=")
 	if len(signature) != 2 {
 		http.Error(w, "Invalid signature, signature is too short", http.StatusUnauthorized)
 		return
 	}
+	log.Printf("Verifying signature for repo: %s", cfg.FullName)
 	if !verifySignature(payload, cfg.Secret, signature[1]) {
 		http.Error(w, "Invalid signature, signature mismatch", http.StatusUnauthorized)
 		return
